@@ -3,8 +3,11 @@ import sys
 class WSD:
     def __init__(self, file):
         self.__file = file
-        #Has 5 keys for each fold, each value is a tuple containing word count in index 0 and
-        # a dictionary containing a key of the sense and a value of the count in index 1.
+        #Has 5 keys for each fold numbered 1-5, each value is a tuple containing fold word count in index 0 and a sense dictionary in index 1.
+        # The sense dictionary contains a key for each sense the word has been seen with. The values at each key is also a dictionary
+        # containing a key called "count" storing the number of times the sense is seen and a key called "bag" with a value
+        # of a string containing the bag of words data.
+
         self.folds = self.__buildFolds()
 
     def __buildFolds(self):
@@ -33,8 +36,12 @@ class WSD:
                     else:
                         senseDict[curSense] = {"count": 1, "bag": ""}
                 if "<head>" in line:
+                    #mWord = line[line.rfind("<head>") + 6:line.rfind("</head>")]
                     if curSense in senseDict:
-                        senseDict[curSense]["bag"] += line[:line.rfind("<head>")] + line[line.rfind("</head>")+7:]
+                        for word in line.split():
+                            if "<head>" not in word and word not in senseDict[curSense]["bag"]:
+                                senseDict[curSense]["bag"] += word + " "
+                                #senseDict[curSense]["bag"] += line[:line.rfind("<head>")] + line[line.rfind("</head>")+7:]
                     wCount += 1
 
                 fCount += 1
@@ -57,13 +64,18 @@ def main():
         return
     AI = WSD(sys.argv[1])
 
-    for key, value in AI.folds.items():
-        print("Fold: " + str(key))
-        count = value[0]
-        for ke, val in value[1].items():
-            print("Key: " + ke + " val: " + str(val))
-        print("Total Count: " + str(count))
-        print()
+
+    with open ("WSD.test.out", 'w') as outp:
+        #outp.write("Fold: " + AI.folds[1][1]["plant%factory"]["bag"] + '\n')
+        for key, value in AI.folds.items():
+            outp.write("Fold: " + str(key) + '\n')
+            count = value[0]
+            for ke, val in value[1].items():
+                outp.write("Key: " + ke + '\n' + " val: " + str(val) + '\n')
+            outp.write("Total Count: " + str(count) + '\n')
+
+
+
 
 
 if __name__ == '__main__':
