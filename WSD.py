@@ -16,6 +16,8 @@ class WSD:
             wCount = 0
             fCount = 1
             fid = 1
+            curSense = ""
+
             for line in data:
                 if fCount > size:
                     folds[fid] = (wCount, senseDict)
@@ -27,10 +29,12 @@ class WSD:
                 if "senseid=" in line:
                     curSense = line[line.rfind("senseid=")+9:line.rfind('/')-1]
                     if curSense in senseDict:
-                        senseDict[curSense] += 1
+                        senseDict[curSense]["count"] += 1
                     else:
-                        senseDict[curSense] = 1
+                        senseDict[curSense] = {"count": 1, "bag": ""}
                 if "<head>" in line:
+                    if curSense in senseDict:
+                        senseDict[curSense]["bag"] += line[:line.rfind("<head>")] + line[line.rfind("</head>")+7:]
                     wCount += 1
 
                 fCount += 1
@@ -54,11 +58,12 @@ def main():
     AI = WSD(sys.argv[1])
 
     for key, value in AI.folds.items():
-        print("New Fold: ")
+        print("Fold: " + str(key))
         count = value[0]
         for ke, val in value[1].items():
-            print ("Key: " + ke + " val: " + str(val))
-        print(count)
+            print("Key: " + ke + " val: " + str(val))
+        print("Total Count: " + str(count))
+        print()
 
 
 if __name__ == '__main__':
