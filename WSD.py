@@ -1,60 +1,71 @@
 import sys
+import math
+
+class Fold:
+    def __init__(self):
+        self.__senses = {}  # Contains a dictionary with sense as a key and value of dict containing keys of count and bag.
+        #Bag is a dict that has every word as a key and a dict value containing freq of word with tag and probability.
+        self.__count = 0
+        self.__data = []  # list of dictionaries containing id, context, and head keys for each sentence.
+
+    @property
+    def getSen(self):
+        return self.__senses
+
+    @property
+    def getData(self):
+        return self.__data
+
+    @property
+    def getCount(self):
+        return self.__count
+
+    def addInfo(self, sense, insId, context):
+        if sense in self.__senses:
+            self.__senses[sense]["count"] += 1
+        else:
+            self.__senses[sense] = {"count": 1, "bag": {}}
+        # Update sense bag
+        for word in context.split():
+            if "<head>" not in word and word not in self.__senses[sense]["bag"]:
+                self.__senses[sense]["bag"][word] = {"count": 1, "prob": -1}
+            elif "<head>" not in word and word in self.__senses[sense]["bag"]:
+                self.__senses[sense]["bag"][word]["count"] += 1
+        # Update data used in testing
+        self.__data.append({"id": insId, "head": context[context.rfind("<head>") + 6:context.rfind("</head>")], "cont": context})
+        self.__count += 1
+
 
 class WSD:
     def __init__(self, file):
         self.__file = file
-        #Has 5 keys for each fold numbered 1-5, each value is a tuple containing fold word count in index 0 and a sense dictionary in index 1.
-        # The sense dictionary contains a key for each sense the word has been seen with. The values at each key is also a dictionary
-        # containing a key called "count" storing the number of times the sense is seen and a key called "bag" with a value
-        # of a string containing the bag of words data.
-
         self.folds = self.__buildFolds()
 
+    #def predict(self):
     def __buildFolds(self):
-        with open(self.__file, 'r') as file:
-            data = file.readlines()
-            size = len(data)/5
-            folds = {}
-            senseDict = {}
-            wCount = 0
-            fCount = 1
-            fid = 1
+        with open(self.__file, 'r') as data:
+            size = math.ceil(data.read().count("</instance>")/5)
+            folds = [Fold(), Fold(), Fold(), Fold(), Fold()]
             curSense = ""
-
+            curId = ""
+            curCont = ""
+            index = 0
+            data.seek(0)
             for line in data:
-                if fCount > size:
-                    folds[fid] = (wCount, senseDict)
-                    fCount = 1
-                    fid += 1
-                    wCount = 0
-                    senseDict = {}
+                if "</instance>" in line:
+                    folds[index].addInfo(curSense, curId, curCont)
+                    if folds[index].getCount >= size and index < 4:
+                        index += 1
+                    curSense = ""
+                    curId = ""
+                    curCont = ""
 
+                if "<instance id=" in line:
+                    curId = line[line.rfind("<answer instance=") + 15:line.rfind("\" d")]
                 if "senseid=" in line:
-                    curSense = line[line.rfind("senseid=")+9:line.rfind('/')-1]
-                    if curSense in senseDict:
-                        senseDict[curSense]["count"] += 1
-                    else:
-                        senseDict[curSense] = {"count": 1, "bag": ""}
+                    curSense = line[line.rfind("senseid=") + 9:line.rfind('/') - 1]
                 if "<head>" in line:
-                    #mWord = line[line.rfind("<head>") + 6:line.rfind("</head>")]
-                    if curSense in senseDict:
-                        for word in line.split():
-                            if "<head>" not in word and word not in senseDict[curSense]["bag"]:
-                                senseDict[curSense]["bag"] += word + " "
-                                #senseDict[curSense]["bag"] += line[:line.rfind("<head>")] + line[line.rfind("</head>")+7:]
-                    wCount += 1
-
-                fCount += 1
-
-                #Use if multiple words ever occur/we need a reference to the word in a training set.
-                '''
-                if "<head>" in line:
-                    curHead = line[line.rfind("<head>")+6:line.rfind("</head>")]
-                    if curHead in countDict:
-                        countDict[curHead] += 1
-                    else:
-                        countDict[curHead] = 1
-                '''
+                    curCont = line.replace('\n', '')
         return folds
 
 
@@ -64,18 +75,9 @@ def main():
         return
     AI = WSD(sys.argv[1])
 
-
-    with open ("WSD.test.out", 'w') as outp:
-        #outp.write("Fold: " + AI.folds[1][1]["plant%factory"]["bag"] + '\n')
-        for key, value in AI.folds.items():
-            outp.write("Fold: " + str(key) + '\n')
-            count = value[0]
-            for ke, val in value[1].items():
-                outp.write("Key: " + ke + '\n' + " val: " + str(val) + '\n')
-            outp.write("Total Count: " + str(count) + '\n')
-
-
-
+    with open("WSD.test.out", 'w') as outp:
+        for data in AI.folds[0].getData:
+            outp.write(str(data) + '\n')
 
 
 if __name__ == '__main__':
