@@ -43,15 +43,12 @@ class WSD:
         self.__file = file
         self.folds = self.__buildFolds()  # MAKE PRIVATE
 
-    def predict(self):
+    def __combineSets(self, index):
         combSens = {}
         combCount = 0
-        index = 0
-        testSet = self.folds[index]
         for i in range(len(self.folds)):
             if i == index:
                 continue
-            combCount += self.folds[i].getCount
             for sense in self.folds[i].getSen:
                 if sense in combSens:
                     combSens[sense]["count"] += self.folds[i].getSen[sense]["count"]
@@ -62,6 +59,53 @@ class WSD:
                             combSens[sense]["bag"][word] = self.folds[i].getSen[sense]["bag"][word]
                 else:
                     combSens[sense] = {"count": self.folds[i].getSen[sense]["count"], "bag": copy.deepcopy(self.folds[i].getSen[sense]["bag"])}  # was getting shallow copied by default
+        for sense in combSens:
+            combCount += combSens[sense]["count"]
+
+        return combSens, combCount
+
+    @staticmethod
+    def __getProbs(countSens):
+        featCounts = {}
+        probSens = copy.deepcopy(countSens)
+        for sense in countSens:
+            if sense in featCounts:
+                featCounts[sense] += sum(countSens[sense]["bag"].values())
+            else:
+                featCounts[sense] = sum(countSens[sense]["bag"].values())
+        v = sum(featCounts.values())
+        for sense in countSens:
+            for word in countSens[sense]["bag"]:
+                probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(featCounts[sense]+v))  # Smoothed
+
+        return probSens, v
+
+    def predict(self):
+        with open("WSD.test.out", 'w') as outp:
+            for i in range(len(self.folds)):
+                outp.write("Fold " + str(i+1) + '\n')
+                testSet = self.folds[i].getData
+                combSens, senseCount= self.__combineSets(i)
+                combSens, v = self.__getProbs(combSens)  # set equal to function call to getProbs function that replaces all counts with probabilities.
+                #Naive Bayes Implementation
+                for item in testSet:
+                    prob = 1
+                    probs = {}
+                    for testWord in item["cont"].split():  # For a context in test set
+                        if "<head>" not in testWord:
+                            for sense in combSens:
+                                if testWord in combSens[sense]["bag"]:
+                                    prob *= combSens[sense]["bag"][testWord]
+                                else:
+                                    prob *= (1/v)
+                                probs[sense] = prob
+                                prob = 1
+
+                    outp.write(item["id"] + " " + max(probs, key=probs.get) + '\n')
+
+
+
+
 
     def __buildFolds(self):
         with open(self.__file, 'r') as data:
@@ -95,11 +139,13 @@ def main():
         print("Too few input arguments")
         return
     AI = WSD(sys.argv[1])
+    AI.predict()
 
-    with open("WSD.test.out", 'w') as outp:
-        for key, val in AI.folds[0].getSen.items():
-            outp.write("key: " + key + '\n')
-            outp.write(str(val) + '\n')
+    #with open("WSD.test.out", 'w') as outp:
+        #for key, val in AI.predict().items():
+           # outp.write("key: " + key + '\n')
+           # outp.write(str(val) + '\n')
+
 
 
 if __name__ == '__main__':
