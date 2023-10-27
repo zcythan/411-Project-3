@@ -1,10 +1,12 @@
+#System libraries
 import sys
 import math
+import copy
 
 class Fold:
     def __init__(self):
         self.__senses = {}  # Contains a dictionary with sense as a key and value of dict containing keys of count and bag.
-        #Bag is a dict that has every word as a key and a dict value containing freq of word with tag and probability.
+        # Bag is a dict that has every word as a key and a dict value containing freq of word with tag.
         self.__count = 0
         self.__data = []  # list of dictionaries containing id, context, and head keys for each sentence.
 
@@ -28,9 +30,9 @@ class Fold:
         # Update sense bag
         for word in context.split():
             if "<head>" not in word and word not in self.__senses[sense]["bag"]:
-                self.__senses[sense]["bag"][word] = {"count": 1, "prob": -1}
+                self.__senses[sense]["bag"][word] = 1
             elif "<head>" not in word and word in self.__senses[sense]["bag"]:
-                self.__senses[sense]["bag"][word]["count"] += 1
+                self.__senses[sense]["bag"][word] += 1
         # Update data used in testing
         self.__data.append({"id": insId, "head": context[context.rfind("<head>") + 6:context.rfind("</head>")], "cont": context})
         self.__count += 1
@@ -39,9 +41,28 @@ class Fold:
 class WSD:
     def __init__(self, file):
         self.__file = file
-        self.folds = self.__buildFolds()
+        self.folds = self.__buildFolds()  # MAKE PRIVATE
 
-    #def predict(self):
+    def predict(self):
+        combSens = {}
+        combCount = 0
+        index = 0
+        testSet = self.folds[index]
+        for i in range(len(self.folds)):
+            if i == index:
+                continue
+            combCount += self.folds[i].getCount
+            for sense in self.folds[i].getSen:
+                if sense in combSens:
+                    combSens[sense]["count"] += self.folds[i].getSen[sense]["count"]
+                    for word in self.folds[i].getSen[sense]["bag"]:
+                        if word in combSens[sense]["bag"]:
+                            combSens[sense]["bag"][word] += self.folds[i].getSen[sense]["bag"][word]
+                        else:
+                            combSens[sense]["bag"][word] = self.folds[i].getSen[sense]["bag"][word]
+                else:
+                    combSens[sense] = {"count": self.folds[i].getSen[sense]["count"], "bag": copy.deepcopy(self.folds[i].getSen[sense]["bag"])}  # was getting shallow copied by default
+
     def __buildFolds(self):
         with open(self.__file, 'r') as data:
             size = math.ceil(data.read().count("</instance>")/5)
@@ -76,8 +97,9 @@ def main():
     AI = WSD(sys.argv[1])
 
     with open("WSD.test.out", 'w') as outp:
-        for data in AI.folds[0].getData:
-            outp.write(str(data) + '\n')
+        for key, val in AI.folds[0].getSen.items():
+            outp.write("key: " + key + '\n')
+            outp.write(str(val) + '\n')
 
 
 if __name__ == '__main__':
