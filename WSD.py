@@ -74,6 +74,7 @@ class WSD:
             else:
                 featCounts[sense] = sum(countSens[sense]["bag"].values())
         v = sum(featCounts.values())
+        #V is the total number of all features across all senses
         for sense in countSens:
             for word in countSens[sense]["bag"]:
                 probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(featCounts[sense]+v))  # Smoothed
@@ -85,7 +86,7 @@ class WSD:
             for i in range(len(self.folds)):
                 outp.write("Fold " + str(i+1) + '\n')
                 testSet = self.folds[i].getData
-                combSens, senseCount= self.__combineSets(i)
+                combSens, senseCount = self.__combineSets(i)
                 combSens, v = self.__getProbs(combSens)  # set equal to function call to getProbs function that replaces all counts with probabilities.
                 #Naive Bayes Implementation
                 for item in testSet:
@@ -98,13 +99,10 @@ class WSD:
                                     prob *= combSens[sense]["bag"][testWord]
                                 else:
                                     prob *= (1/v)
-                                probs[sense] = prob
+                                probs[sense] = prob * (combSens[sense]["count"]/senseCount)
                                 prob = 1
 
                     outp.write(item["id"] + " " + max(probs, key=probs.get) + '\n')
-
-
-
 
 
     def __buildFolds(self):
