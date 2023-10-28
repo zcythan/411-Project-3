@@ -22,6 +22,7 @@ class Fold:
     def getCount(self):
         return self.__count
 
+    #Add data to a fold.
     def addInfo(self, sense, insId, context):
         if sense in self.__senses:
             self.__senses[sense]["count"] += 1
@@ -43,6 +44,7 @@ class WSD:
         self.__file = file
         self.__folds = self.__buildFolds()  # MAKE PRIVATE
 
+    #For combining the data of multiple fold objects.
     def __combineSets(self, index):
         combSens = {}
         combCount = 0
@@ -62,6 +64,7 @@ class WSD:
         for sense in combSens:
             combCount += combSens[sense]["count"]
 
+        #dictionary with all combined data, occurrence count of all senses in combined data.
         return combSens, combCount
 
     @staticmethod
@@ -73,34 +76,41 @@ class WSD:
                 featCounts[sense] += sum(countSens[sense]["bag"].values())
             else:
                 featCounts[sense] = sum(countSens[sense]["bag"].values())
-        v = sum(featCounts.values())
-        #V is the total number of all features across all senses
+        #stores every word used in the bag of all senses once. No duplicates.
+        bagWords = set()
+        for sense in probSens:
+            bagWords.update(probSens[sense]["bag"].keys())
+        #number of these is v
+        v = len(bagWords)
+        #Make dictionary storing P(Fn|S) values instead of counts.
         for sense in countSens:
             for word in countSens[sense]["bag"]:
-                probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(featCounts[sense]+v))  # Smoothed
+                probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(countSens[sense]["count"]+v))  # Smoothed featCounts[sense]
 
-        return probSens, v
+        return probSens, featCounts, v
 
     def predict(self):
         with open("WSD.test.out", 'w') as outp:
             for i in range(len(self.__folds)):
                 outp.write("Fold " + str(i+1) + '\n')
+                #getData is a list of dicts, it only contains the context, id and head word. The sense is NOT included here.
                 testSet = self.__folds[i].getData
                 combSens, senseCount = self.__combineSets(i)
-                combSens, v = self.__getProbs(combSens)  # set equal to function call to getProbs function that replaces all counts with probabilities.
-                #Naive Bayes Implementation
+                combSens, featCounts, v = self.__getProbs(combSens)  # set equal to function call to getProbs function that replaces all counts with probabilities.
+                #Naive Bayes Implementation in log space.
                 for item in testSet:
-                    prob = 1
                     probs = {}
-                    for testWord in item["cont"].split():  # For a context in test set
+                    # doing P(S) for all first
+                    for sense in combSens:
+                        probs[sense] = math.log(combSens[sense]["count"] / senseCount)
+                    #See if test set word was observed, else smooth 0.
+                    for testWord in item["cont"].split():
                         if "<head>" not in testWord:
-                            for sense in combSens:  # Log space to avoid underflow as per instructions.
+                            for sense in combSens:
                                 if testWord in combSens[sense]["bag"]:
-                                    prob *= math.log(combSens[sense]["bag"][testWord])
+                                    probs[sense] += math.log(combSens[sense]["bag"][testWord])
                                 else:
-                                    prob *= (1/v)
-                                probs[sense] = math.exp(prob * (combSens[sense]["count"]/senseCount))
-                                prob = 1
+                                    probs[sense] += math.log(1 / (combSens[sense]["count"] + v))  # same
 
                     outp.write(item["id"] + " " + max(probs, key=probs.get) + '\n')
 
