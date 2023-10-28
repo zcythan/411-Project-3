@@ -89,7 +89,7 @@ class WSD:
             for word in countSens[sense]["bag"]:
                 #P(Fn|S) = frequency of word in bag for sense + 1 / frequency of sense + v
                 #Based on c(Wi-1, Wi)+1/c(Wi-1)+v for la place.
-                probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(featCounts[sense]+v))  # Smoothed countSens[sense]["count"]
+                probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(countSens[sense]["count"]+v))  # Smoothed featCounts[sense]
 
         return probSens, featCounts, v
 
@@ -100,7 +100,7 @@ class WSD:
                 #getData is a list of dicts, it only contains the context, id and head word. The sense is NOT included here.
                 testSet = self.__folds[i].getData
                 combSens, senseCount = self.__combineSets(i)  # Combine all data from current training folds
-                combSens, featCounts, v = self.__getProbs(combSens)  # get the smoothed probabilities for each feature given sense. 
+                combSens, featCounts, v = self.__getProbs(combSens)  # get the smoothed probabilities for each feature given sense.
                 #Naive Bayes Implementation in log space.
                 for item in testSet:
                     probs = {}
@@ -114,7 +114,7 @@ class WSD:
                                 if testWord in combSens[sense]["bag"]:
                                     probs[sense] += math.log(combSens[sense]["bag"][testWord])  # add bc log space
                                 else:
-                                    probs[sense] += math.log(1 / (featCounts[sense] + v))  # same
+                                    probs[sense] += math.log(1 / (combSens[sense]["count"] + v))  # same
 
                     outp.write(item["id"] + " " + max(probs, key=probs.get) + '\n')
 
@@ -155,7 +155,7 @@ class WSD:
                 origLines = orig.readlines()
                 for line in pred:
                     if ("Fold " + str(curFold)) in line:
-                        if correct > 0 and wrong > 0:
+                        if correct > 0 or wrong > 0:
                             accs.append(round((correct / (correct + wrong)) * 100, 2))
                             correct = 0
                             wrong = 0
