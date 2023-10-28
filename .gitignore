@@ -241,3 +241,5 @@ TestColl
 POS.test.out
 Baseline.test.out
 WSD.test.out
+tank.test.out
+*.out

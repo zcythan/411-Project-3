@@ -60,13 +60,15 @@ class WSD:
                         else:
                             combSens[sense]["bag"][word] = self.__folds[i].getSen[sense]["bag"][word]
                 else:
-                    combSens[sense] = {"count": self.__folds[i].getSen[sense]["count"], "bag": copy.deepcopy(self.__folds[i].getSen[sense]["bag"])}  # was getting shallow copied by default
+                    # was getting shallow copied by default
+                    combSens[sense] = {"count": self.__folds[i].getSen[sense]["count"], "bag": copy.deepcopy(self.__folds[i].getSen[sense]["bag"])}
         for sense in combSens:
             combCount += combSens[sense]["count"]
 
         #dictionary with all combined data, occurrence count of all senses in combined data.
         return combSens, combCount
 
+    #Consider removing featCounts
     @staticmethod
     def __getProbs(countSens):
         featCounts = {}
@@ -85,12 +87,14 @@ class WSD:
         #Make dictionary storing P(Fn|S) values instead of counts.
         for sense in countSens:
             for word in countSens[sense]["bag"]:
+                #P(Fn|S) = frequency of word in bag for sense + 1 / frequency of sense + v
+                #Based on c(Wi-1, Wi)+1/c(Wi-1)+v for la place.
                 probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(countSens[sense]["count"]+v))  # Smoothed featCounts[sense]
 
         return probSens, featCounts, v
 
     def predict(self):
-        with open("WSD.test.out", 'w') as outp:
+        with open(self.__folds[0].getData[0]["head"] + ".test.out", 'w') as outp:  # Probably the most complicated way I could have done this.
             for i in range(len(self.__folds)):
                 outp.write("Fold " + str(i+1) + '\n')
                 #getData is a list of dicts, it only contains the context, id and head word. The sense is NOT included here.
@@ -108,7 +112,7 @@ class WSD:
                         if "<head>" not in testWord:
                             for sense in combSens:
                                 if testWord in combSens[sense]["bag"]:
-                                    probs[sense] += math.log(combSens[sense]["bag"][testWord])
+                                    probs[sense] += math.log(combSens[sense]["bag"][testWord])  # add bc log space
                                 else:
                                     probs[sense] += math.log(1 / (combSens[sense]["count"] + v))  # same
 
@@ -147,7 +151,7 @@ class WSD:
         offset = 0
         accs = []
         with open(self.__file, 'r') as orig:
-            with open("WSD.test.out", 'r') as pred:
+            with open(self.__folds[0].getData[0]["head"] + ".test.out", 'r') as pred:
                 origLines = orig.readlines()
                 for line in pred:
                     if ("Fold " + str(curFold)) in line:
@@ -175,10 +179,6 @@ class WSD:
                             offset += 1
                         else:
                             break
-                    print("Train ID: " + trainId)
-                    print("Train Sense: " + trainSen)
-                    print("Test ID: " + testIds[0])
-                    print("Test Sense: " + testIds[1])
                     if testIds[0] == trainId and testIds[1] == trainSen:
                         correct += 1
                     else:
@@ -197,7 +197,6 @@ def main():
     for i in range(len(accs)):
         print("Fold " + str(i+1) + ": " + str(accs[i]))
     print("Average: " + format(sum(accs)/len(accs), '.2f'))
-
 
 
 if __name__ == '__main__':
