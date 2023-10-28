@@ -99,8 +99,8 @@ class WSD:
                 outp.write("Fold " + str(i+1) + '\n')
                 #getData is a list of dicts, it only contains the context, id and head word. The sense is NOT included here.
                 testSet = self.__folds[i].getData
-                combSens, senseCount = self.__combineSets(i)
-                combSens, featCounts, v = self.__getProbs(combSens)  # set equal to function call to getProbs function that replaces all counts with probabilities.
+                combSens, senseCount = self.__combineSets(i)  # Combine all data from current training folds
+                combSens, featCounts, v = self.__getProbs(combSens)  # get the smoothed probabilities for each feature given sense. 
                 #Naive Bayes Implementation in log space.
                 for item in testSet:
                     probs = {}
