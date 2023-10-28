@@ -89,7 +89,7 @@ class WSD:
             for word in countSens[sense]["bag"]:
                 #P(Fn|S) = frequency of word in bag for sense + 1 / frequency of sense + v
                 #Based on c(Wi-1, Wi)+1/c(Wi-1)+v for la place.
-                probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(countSens[sense]["count"]+v))  # Smoothed featCounts[sense]
+                probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(featCounts[sense]+v))  # Smoothed countSens[sense]["count"]
 
         return probSens, featCounts, v
 
@@ -114,7 +114,7 @@ class WSD:
                                 if testWord in combSens[sense]["bag"]:
                                     probs[sense] += math.log(combSens[sense]["bag"][testWord])  # add bc log space
                                 else:
-                                    probs[sense] += math.log(1 / (combSens[sense]["count"] + v))  # same
+                                    probs[sense] += math.log(1 / (featCounts[sense] + v))  # same
 
                     outp.write(item["id"] + " " + max(probs, key=probs.get) + '\n')
 
