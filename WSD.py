@@ -41,24 +41,24 @@ class Fold:
 class WSD:
     def __init__(self, file):
         self.__file = file
-        self.folds = self.__buildFolds()  # MAKE PRIVATE
+        self.__folds = self.__buildFolds()  # MAKE PRIVATE
 
     def __combineSets(self, index):
         combSens = {}
         combCount = 0
-        for i in range(len(self.folds)):
+        for i in range(len(self.__folds)):
             if i == index:
                 continue
-            for sense in self.folds[i].getSen:
+            for sense in self.__folds[i].getSen:
                 if sense in combSens:
-                    combSens[sense]["count"] += self.folds[i].getSen[sense]["count"]
-                    for word in self.folds[i].getSen[sense]["bag"]:
+                    combSens[sense]["count"] += self.__folds[i].getSen[sense]["count"]
+                    for word in self.__folds[i].getSen[sense]["bag"]:
                         if word in combSens[sense]["bag"]:
-                            combSens[sense]["bag"][word] += self.folds[i].getSen[sense]["bag"][word]
+                            combSens[sense]["bag"][word] += self.__folds[i].getSen[sense]["bag"][word]
                         else:
-                            combSens[sense]["bag"][word] = self.folds[i].getSen[sense]["bag"][word]
+                            combSens[sense]["bag"][word] = self.__folds[i].getSen[sense]["bag"][word]
                 else:
-                    combSens[sense] = {"count": self.folds[i].getSen[sense]["count"], "bag": copy.deepcopy(self.folds[i].getSen[sense]["bag"])}  # was getting shallow copied by default
+                    combSens[sense] = {"count": self.__folds[i].getSen[sense]["count"], "bag": copy.deepcopy(self.__folds[i].getSen[sense]["bag"])}  # was getting shallow copied by default
         for sense in combSens:
             combCount += combSens[sense]["count"]
 
@@ -83,9 +83,9 @@ class WSD:
 
     def predict(self):
         with open("WSD.test.out", 'w') as outp:
-            for i in range(len(self.folds)):
+            for i in range(len(self.__folds)):
                 outp.write("Fold " + str(i+1) + '\n')
-                testSet = self.folds[i].getData
+                testSet = self.__folds[i].getData
                 combSens, senseCount = self.__combineSets(i)
                 combSens, v = self.__getProbs(combSens)  # set equal to function call to getProbs function that replaces all counts with probabilities.
                 #Naive Bayes Implementation
@@ -94,16 +94,15 @@ class WSD:
                     probs = {}
                     for testWord in item["cont"].split():  # For a context in test set
                         if "<head>" not in testWord:
-                            for sense in combSens:
+                            for sense in combSens:  # Log space to avoid underflow as per instructions.
                                 if testWord in combSens[sense]["bag"]:
-                                    prob *= combSens[sense]["bag"][testWord]
+                                    prob *= math.log(combSens[sense]["bag"][testWord])
                                 else:
                                     prob *= (1/v)
-                                probs[sense] = prob * (combSens[sense]["count"]/senseCount)
+                                probs[sense] = math.exp(prob * (combSens[sense]["count"]/senseCount))
                                 prob = 1
 
                     outp.write(item["id"] + " " + max(probs, key=probs.get) + '\n')
-
 
     def __buildFolds(self):
         with open(self.__file, 'r') as data:
@@ -124,13 +123,59 @@ class WSD:
                     curCont = ""
 
                 if "<instance id=" in line:
-                    curId = line[line.rfind("<answer instance=") + 15:line.rfind("\" d")]
+                    curId = line[line.rfind("<instance id=") + 14:line.rfind("\" d")]
                 if "senseid=" in line:
                     curSense = line[line.rfind("senseid=") + 9:line.rfind('/') - 1]
                 if "<head>" in line:
                     curCont = line.replace('\n', '')
         return folds
 
+    def getAccuracy(self):
+        correct = 0
+        wrong = 0
+        curFold = 1
+        offset = 0
+        accs = []
+        with open(self.__file, 'r') as orig:
+            with open("WSD.test.out", 'r') as pred:
+                origLines = orig.readlines()
+                for line in pred:
+                    if ("Fold " + str(curFold)) in line:
+                        if correct > 0 and wrong > 0:
+                            accs.append(round((correct / (correct + wrong)) * 100, 2))
+                            correct = 0
+                            wrong = 0
+                        curFold += 1
+                        continue
+                    testIds = line.split()
+                    trainId = ""
+                    trainSen = ""
+                    while "</instance>" not in origLines[offset]:
+                        if "<instance id=" in origLines[offset]:
+                            trainId = origLines[offset][origLines[offset].rfind("<instance id=") + 14:origLines[offset].rfind("\" d")]
+                        if "senseid=" in origLines[offset]:
+                            trainSen = origLines[offset][origLines[offset].rfind("senseid=") + 9:origLines[offset].rfind('/') - 1]
+                        if (offset + 1) < len(origLines):
+                            offset += 1
+                        else:
+                            break
+
+                    while "<instance id=" not in origLines[offset]:
+                        if (offset+1) < len(origLines):
+                            offset += 1
+                        else:
+                            break
+                    print("Train ID: " + trainId)
+                    print("Train Sense: " + trainSen)
+                    print("Test ID: " + testIds[0])
+                    print("Test Sense: " + testIds[1])
+                    if testIds[0] == trainId and testIds[1] == trainSen:
+                        correct += 1
+                    else:
+                        wrong += 1
+
+        accs.append(round((correct / (correct + wrong)) * 100, 2))
+        return accs
 
 def main():
     if len(sys.argv) < 2:
@@ -138,11 +183,10 @@ def main():
         return
     AI = WSD(sys.argv[1])
     AI.predict()
-
-    #with open("WSD.test.out", 'w') as outp:
-        #for key, val in AI.predict().items():
-           # outp.write("key: " + key + '\n')
-           # outp.write(str(val) + '\n')
+    accs = AI.getAccuracy()
+    for i in range(len(accs)):
+        print("Fold " + str(i+1) + ": " + str(accs[i]))
+    print("Average: " + format(sum(accs)/len(accs), '.2f'))
 
 
 
