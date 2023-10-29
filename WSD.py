@@ -92,7 +92,7 @@ class WSD:
         return probSens, v
 
     def predict(self):
-        with open(self.__folds[0].getData[0]["head"] + ".test.out", 'w') as outp:  # Probably the most complicated way I could have done this.
+        with open(self.__folds[0].getData[0]["head"] + ".wsd.out", 'w') as outp:  # Probably the most complicated way I could have done this.
             for i in range(len(self.__folds)):
                 outp.write("Fold " + str(i+1) + '\n')
                 #getData is a list of dicts, it only contains the context, id and head word. The sense is NOT included here.
@@ -153,7 +153,7 @@ class WSD:
         offset = 0
         accs = []
         with open(self.__file, 'r') as orig:
-            with open(self.__folds[0].getData[0]["head"] + ".test.out", 'r') as pred:
+            with open(self.__folds[0].getData[0]["head"] + ".wsd.out", 'r') as pred:
                 origLines = orig.readlines()
                 for line in pred:
                     if ("Fold " + str(curFold)) in line:
