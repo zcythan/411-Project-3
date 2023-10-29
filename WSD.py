@@ -94,14 +94,14 @@ class WSD:
             for word in countSens[sense]["bag"]:
                 #P(Fn|S) = frequency of word in bag for sense + 1 / frequency of sense + v
                 #Based on c(Wi-1, Wi)+1/c(Wi-1)+v for la place.
-                #print("For word: " + word + " in sense " + sense)
-                #print("Numerator without smooth: " + str(countSens[sense]["bag"][word]))
-                #print("Denominator without smooth: " + str(countSens[sense]["count"]))
-                #print("Smoothing value: " + str(v))
+                print("For word: " + word + " in sense " + sense)
+                print("Numerator without smooth: " + str(countSens[sense]["bag"][word]))
+                print("Denominator without smooth: " + str(countSens[sense]["count"]))
+                print("Smoothing value: " + str(v))
 
                 probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(countSens[sense]["count"]+v))  # Smoothed featCounts[sense]
-                #print("Probability: " + str( probSens[sense]["bag"][word]))
-                #print()
+                print("Probability: " + str( probSens[sense]["bag"][word]))
+                print()
 
         return probSens, featCounts, v
 
