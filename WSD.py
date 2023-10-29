@@ -30,6 +30,8 @@ class Fold:
             self.__senses[sense] = {"count": 1, "bag": {}}
         # Update sense bag
         for word in context.split():
+            if word == ".":
+                continue
             if "<head>" not in word and word not in self.__senses[sense]["bag"]:
                 self.__senses[sense]["bag"][word] = 1
             elif "<head>" not in word and word in self.__senses[sense]["bag"]:
@@ -73,23 +75,33 @@ class WSD:
     def __getProbs(countSens):
         featCounts = {}
         probSens = copy.deepcopy(countSens)
+        # stores every word used in the bag of all senses once. No duplicates.
+        bagWords = {}
+        for sense in countSens:
+            for word in countSens[sense]["bag"]:
+                if word not in bagWords:
+                    bagWords[word] = 1
+        # number of these is v
+        v = len(bagWords)
         for sense in countSens:
             if sense in featCounts:
                 featCounts[sense] += sum(countSens[sense]["bag"].values())
             else:
                 featCounts[sense] = sum(countSens[sense]["bag"].values())
-        #stores every word used in the bag of all senses once. No duplicates.
-        bagWords = set()
-        for sense in probSens:
-            bagWords.update(probSens[sense]["bag"].keys())
-        #number of these is v
-        v = len(bagWords)
+
         #Make dictionary storing P(Fn|S) values instead of counts.
         for sense in countSens:
             for word in countSens[sense]["bag"]:
                 #P(Fn|S) = frequency of word in bag for sense + 1 / frequency of sense + v
                 #Based on c(Wi-1, Wi)+1/c(Wi-1)+v for la place.
+                #print("For word: " + word + " in sense " + sense)
+                #print("Numerator without smooth: " + str(countSens[sense]["bag"][word]))
+                #print("Denominator without smooth: " + str(countSens[sense]["count"]))
+                #print("Smoothing value: " + str(v))
+
                 probSens[sense]["bag"][word] = ((countSens[sense]["bag"][word]+1)/(countSens[sense]["count"]+v))  # Smoothed featCounts[sense]
+                #print("Probability: " + str( probSens[sense]["bag"][word]))
+                #print()
 
         return probSens, featCounts, v
 
@@ -100,12 +112,14 @@ class WSD:
                 #getData is a list of dicts, it only contains the context, id and head word. The sense is NOT included here.
                 testSet = self.__folds[i].getData
                 combSens, senseCount = self.__combineSets(i)  # Combine all data from current training folds
+                print("Current fold " + str(i+1))
                 combSens, featCounts, v = self.__getProbs(combSens)  # get the smoothed probabilities for each feature given sense.
                 #Naive Bayes Implementation in log space.
                 for item in testSet:
                     probs = {}
                     # doing P(S) for all first
                     for sense in combSens:
+                        #Since every occurrence of word is tagged with sense, senseCount = word count.
                         probs[sense] = math.log(combSens[sense]["count"] / senseCount)
                     #See if test set word was observed, else smooth 0.
                     for testWord in item["cont"].split():
@@ -184,7 +198,8 @@ class WSD:
                     else:
                         wrong += 1
 
-        accs.append(round((correct / (correct + wrong)) * 100, 2))
+        if correct > 0 or wrong > 0:
+            accs.append(round((correct / (correct + wrong)) * 100, 2))
         return accs
 
 def main():
