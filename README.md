@@ -1,1 +1,1 @@
-This program utilizes a decision tree to conduct sentence boundary detection. 
+This program implements the Naive Bayes algorithm to perform word sense disambiguation.
